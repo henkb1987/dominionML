@@ -4,8 +4,10 @@ require("ranger")
 
 # make supply
 std.cards <- c("Copper", "Silver", "Gold", "Estate", "Duchy", "Province", "Colony")
-kingdom <- c("Cellar", "Market", "Woodcutter", "Militia", "Mine", "Moat", "Remodel", "Smithy", "Village", "Workshop")
-kingdom <- as.character(sample(card.info$Singular[-which(card.info$Singular %in% std.cards)], 10))
+std.cards <- c("Copper", "Silver", "Gold", "Estate", "Duchy", "Province")
+kingdom <- c("Great Hall", "Witch", "Smithy", "Trade Post", "Baron", "Council Room", "Duke", "Steward", "Spy", "Torturer")
+#kingdom <- as.character(sample(card.info$Singular[-which(card.info$Singular %in% std.cards)], 10))
+# library, moat, thief, adventurer, woodcutter, 'oplicyhter', feast, coppersmith, militia
 
 kingdom.numbers <- which(card.info$Singular %in% std.cards | card.info$Singular %in% kingdom)
 input.slices <- rep(0, nrow(card.info))
