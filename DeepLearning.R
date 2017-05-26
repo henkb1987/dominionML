@@ -30,3 +30,25 @@ update.nn <- function(model.name, dat){
   )
   save(model, file=model.name)
 }
+buy.strategy <- function(model, game.state, my.money=NA){
+  game.state <- rbind(game.state, game.state)
+  load("card.info")
+  prediction <- nn.predict(model, game.state[, !grepl("b_", colnames(game.state))])[1,]
+  names(prediction) <- gsub("b_","",names(prediction))
+  legal.buys <- gsub("s_","",names(which(game.state[1,] > 0 & grepl("s_",colnames(game.state)))))
+  prediction <- prediction[names(prediction) %in% legal.buys]
+  prediction <- sort(prediction, T)
+  turn.data <- data.frame(
+    card = names(prediction),
+    priority = unname(prediction),
+    cost = -1
+    )
+  for(card in 1:nrow(turn.data)){
+    turn.data$cost[card] <- as.numeric(as.character(card.info$Cost[as.character(card.info$Singular) == as.character(turn.data$card[card])]))
+  }
+  if(!is.na(my.money)){
+    turn.data <- subset(turn.data, turn.data$cost <= my.money)
+  }
+  turn.data$priority <- 100 * round(turn.data$priority/sum(turn.data$priority),2)
+  return(turn.data)
+}
