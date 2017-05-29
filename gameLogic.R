@@ -26,6 +26,7 @@ init.game <- function(kingdom = random.kingdom(), players = c("me","opponent")){
     players = players,
     kingdom = c("Copper", "Silver", "Gold", "Platinum", "Estate", "Duchy", "Province", "Silver", kingdom)
   )
+  return(game)
 }
 
 init.game.data <- function(kingdom, n.players){
@@ -36,25 +37,32 @@ init.game.data <- function(kingdom, n.players){
     game.data[1, which(colnames(game.data) == paste0("s_",kingdom[card]))] <- 10
   }
   # money cards
-  game.data[1, get.std.cards()[c(2,5,6,8)]] <- rep(100,4)
+  game.data[1, get.std.cards()[c(2,5,6,8)]] <- rep(1,4)
   # vp cards
   game.data[1, get.std.cards()[c(1,3,4,7)]] <- rep(c(-1,8,12,12)[n.players],4)
-  
+  # player starting hands
+  game.data[1, "d_Copper"] <- 7
+  game.data[1, "d_Estate"] <- 3
+  game.data[1, "o_Copper"] <- 7
+  game.data[1, "o_Estate"] <- 3
   return(game.data)
 }
 # buys is a vector, e.g. c("copper", "copper", "duke")
 add.my.buy <- function(game.data, buys){
   for(b in 1:length(buys)){
-    
-    game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
+    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
+      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
+    }
     game.data[1, paste0("d_",buys[b])] <- game.data[1, paste0("d_",buys[b])] + 1
   }
   return(game.data)
 }
 add.opp.buy <- function(game.data, buys){
   for(b in 1:length(buys)){
-    game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
-    game.data[1, paste0("o_",buys[b])] <- game.data[1, paste0("o_",buys[b])] + 1
+    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
+      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
+    }
+    game.data[1, paste0("o_",buys[b])] <- game.data[1, paste0("o_",buys[b])] + 1 / (length(game$players) - 1)
   }
   return(game.data)
 }
@@ -73,7 +81,8 @@ run.game <- function(game = init.game(), buy.sampled=F){
     # my turn: after knowing money, predict my buy
     if(player == 1){
       paint.kingdom(game)
-      my.money=as.numeric(readline("My turn! Please do your actions. How much money do you have?\n"))
+      cat("My turn! I expect in opening hand $",expected.money(game$game.data),"\n")
+      my.money=as.numeric(readline("Please do your actions. How much money do you have?\n"))
       my.options <- buy.strategy(model, game$game.data, my.money)
       if(buy.sampled){
         my.buy <- as.character(sample(my.options$card, 1, T, my.options$priority))
@@ -96,5 +105,16 @@ run.game <- function(game = init.game(), buy.sampled=F){
       player <- 1
       turn <- turn + 1
     }
+  }
+}
+expected.money <- function(game.state, me = T){
+  if(me){
+    n.cards <- sum(game.state[1, grepl("d_", colnames(game.state), T)])
+    total.value <- game.state[1, "d_Copper"] + 2 * game.state[1, "d_Silver"] + 3 * game.state[1, "d_Gold"] + 5 * game.state[1, "d_Platinum"]
+    return(5 * total.value / n.cards)
+  } else {
+    n.cards <- sum(game.state[1, grepl("o_", colnames(game.state), T)])
+    total.value <- game.state[1, "o_Copper"] + 2 * game.state[1, "o_Silver"] + 3 * game.state[1, "o_Gold"] + 5 * game.state[1, "o_Platinum"]
+    return(5 * total.value / n.cards)  
   }
 }

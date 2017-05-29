@@ -115,7 +115,7 @@ get.game.states <- function(game.data, real=F){
     # init the supply at the start of the game
     # action cards
     game.states[, get.supply(game.data,F), "supply"] <- 10
-    game.states[, get.std.cards()[c(2,5,6,8)], "supply"] <- rep(100,4)
+    game.states[, get.std.cards()[c(2,5,6,8)], "supply"] <- rep(15,4)
     game.states[, get.std.cards()[c(1,3,4,7)], "supply"] <- rep(c(-1,8,12,12)[n.players],4)
     
     # walk through the game
@@ -158,5 +158,9 @@ get.game.states.inoutput <- function(games, do.parallel=F){
   cat("Binding game states ...\n")
   all.states <- do.call(rbind, all.states)
   colnames(all.states) <- paste0(rep(c("s_", "d_", "o_", "b_"), each = 173), card.info$Singular)
+  return(all.states)
+}
+adjust.money.supply <- function(all.states){
+  all.states[, which(grepl("s_Copper|s_Silver|s_Gold|s_Platinum",colnames(all.states)))] <- 1
   return(all.states)
 }
