@@ -1,31 +1,29 @@
 init.nn <- function(model.name, dat){
-  # clean data
-  dat <- dat[complete.cases(dat), ]
-  dat <- adjust.money.supply(dat)
-  #  for(i in 1:ncol(dat)){
-  #   cat("scaling",colnames(dat)[i],"...\n")
-  #    dat[, i] <- scale(dat[, i])
-  #  }
+  dat <- clean.data(dat)
+  # add some random rows to prevent exclusion of constant columns.
+  dat <- rbind(dat, matrix(runif(10 * ncol(dat)), 10, ncol(dat)))
   model <- dbn.dnn.train(
     x = dat[, !grepl("b_", colnames(dat))],
     y = dat[, grepl("b_", colnames(dat))],
-    hidden = c(375),
+    hidden = c(100),
     learningrate_scale = .9,
-    learningrate = .7,
+    learningrate = .8,
     numepochs = 1,
-    activationfun = "tanh",
+    activationfun = "sigm",
     hidden_dropout = .1,
     visible_dropout = 0,
-    output = "softmax"
+    output = "sigm"
   )
+  cat("Saving",model.name,"and",paste0(model.name,"_init"),".\n")
   save(model, file=model.name)
+  save(model, file=paste0(model.name,"_init"))
+  cat("done.\n")
 }
 update.nn <- function(model.name, dat){
-  # clean data
-  dat <- dat[complete.cases(dat), ]
-  dat <- adjust.money.supply(dat)
-  dat <- dat[sample(1:nrow(dat)), ]
+  dat <- clean.data(dat)
+  cat("Loading model,")
   load(model.name)
+  cat("and training model...\n")
   model <- nn.train(
     x = dat[, !grepl("b_", colnames(dat))],
     y = dat[, grepl("b_", colnames(dat))],
@@ -40,7 +38,12 @@ update.nn <- function(model.name, dat){
     visible_dropout = model$visible_dropout,
     output = model$output
   )
+  cat("Saving...")
+  if(is.nan(model$L[1])){
+    stop("Save aborted: NaN introduced in model")
+  }
   save(model, file=model.name)
+  cat("Done.\n")
 }
 update.nn.random <- function(model.name, dat){
   # clean data

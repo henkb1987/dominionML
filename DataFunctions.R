@@ -161,6 +161,20 @@ get.game.states.inoutput <- function(games, do.parallel=F){
   return(all.states)
 }
 adjust.money.supply <- function(all.states){
-  all.states[, which(grepl("s_Copper|s_Silver|s_Gold|s_Platinum",colnames(all.states)))] <- 1
+  all.states[, which(grepl("s_Copper|s_Silver|s_Gold|s_Platinum",colnames(all.states)))] <- runif(nrow(all.states), .95, 1.05)
   return(all.states)
+}
+clean.data <- function(dat){
+  # clean data
+  cat("Removing turns with NA data, ")
+  dat <- dat[complete.cases(dat), ]
+  cat("setting all money supplies to 1, ")
+  dat <- adjust.money.supply(dat)
+  cat("randomize row order,")
+  dat <- dat[sample(1:nrow(dat)), ]
+  cat("and normalize to 0-1 range.\n")
+  for(i in which(grepl("s_|d_|o_",colnames(dat),T))){
+    dat[, i] <-  dat[, i] / 10
+  }
+  return(dat)
 }
