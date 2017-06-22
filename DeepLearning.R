@@ -5,9 +5,9 @@ init.nn <- function(model.name, dat){
   model <- dbn.dnn.train(
     x = dat[, !grepl("b_", colnames(dat))],
     y = dat[, grepl("b_", colnames(dat))],
-    hidden = c(100),
+    hidden = c(100,100),
     learningrate_scale = .9,
-    learningrate = .8,
+    learningrate = .7,
     numepochs = 1,
     activationfun = "sigm",
     hidden_dropout = .1,
@@ -73,7 +73,6 @@ buy.strategy <- function(model, game.state, my.money=NA){
   names(prediction) <- gsub("b_","",names(prediction))
   legal.buys <- gsub("s_","",names(which(game.state[1,] > 0 & grepl("s_",colnames(game.state)))))
   prediction <- prediction[names(prediction) %in% legal.buys]
-  prediction <- sort(prediction, T)
   turn.data <- data.frame(
     card = names(prediction),
     priority = unname(prediction),
@@ -83,6 +82,9 @@ buy.strategy <- function(model, game.state, my.money=NA){
   for(card in 1:nrow(turn.data)){
     turn.data$cost[card] <- as.numeric(as.character(card.info$Cost[as.character(card.info$Singular) == as.character(turn.data$card[card])]))
   }
+  # cost - priority correction: aannemend dat hogere kosten betere kaarten zijn dd[ order(-dd[,4], dd[,1]), ]
+  turn.data$priority <- turn.data$priority * (1 + turn.data$cost ^ 99)
+  turn.data <- turn.data[order(-turn.data[,2]),]
   if(!is.na(my.money)){
     turn.data <- subset(turn.data, turn.data$cost <= my.money)
   }

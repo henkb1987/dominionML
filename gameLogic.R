@@ -41,31 +41,31 @@ init.game.data <- function(kingdom, n.players){
   # vp cards
   game.data[1, get.std.cards()[c(1,3,4,7)]] <- rep(c(-1,8,12,12)[n.players],4)
   # player starting hands
-  game.data[1, "d_Copper"] <- 7
-  game.data[1, "d_Estate"] <- 3
-  game.data[1, "o_Copper"] <- 7
-  game.data[1, "o_Estate"] <- 3
+  game.data[1, "d_Copper"] <- 0
+  game.data[1, "d_Estate"] <- 0
+  game.data[1, "o_Copper"] <- 0
+  game.data[1, "o_Estate"] <- 0
   return(game.data)
 }
 # buys is a vector, e.g. c("copper", "copper", "duke")
 add.my.buy <- function(game.data, buys){
   for(b in 1:length(buys)){
-    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
-      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
-    }
     if(game.data[1, paste0("s_",buys[b])] > 0){
       game.data[1, paste0("d_",buys[b])] <- game.data[1, paste0("d_",buys[b])] + 1
+    }
+    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
+      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
     }
   }
   return(game.data)
 }
 add.opp.buy <- function(game.data, buys, n.players){
   for(b in 1:length(buys)){
-    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
-      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
-    }
     if(game.data[1, paste0("s_",buys[b])] > 0){
       game.data[1, paste0("o_",buys[b])] <- game.data[1, paste0("o_",buys[b])] + 1 / (n.players - 1)
+    }
+    if(!grepl("s_Copper|s_Silver|s_Gold|s_Platinum",paste0("s_",buys[b]),t)){
+      game.data[1, paste0("s_",buys[b])] <- game.data[1, paste0("s_",buys[b])] - 1
     }
   }
   return(game.data)
@@ -81,7 +81,6 @@ run.game <- function(game = init.game(), buy.sampled=T, do.auto=T){
   while(!do.stop){
     #save(game, file = game.key)    
     # backup game
-    cat("Turn",turn,"...\n")
     # my turn: after knowing money, predict my buy
     if(player == 1){
       if(!do.auto){
@@ -100,19 +99,24 @@ run.game <- function(game = init.game(), buy.sampled=T, do.auto=T){
       } else {
         my.buy <- as.character(my.options$card[1]) 
       }
-      game$game.data <- add.my.buy(game$game.data, my.buy)
       if(!do.auto){
         cat("These were my options:\n")
         print(my.options)
       }
-      cat("I will buy: ",my.buy," in turn",turn,"\n")
+      cat("!!! I will buy: ",my.buy," in turn",turn," !!!\n")
+      cat(paste0(1:length(game.buy.options),":",game.buy.options))
+      player.input <- as.numeric(readline("0 if ok ander getal is overide"))
+      if(player.input == 0){
+        game$game.data <- add.my.buy(game$game.data, my.buy)
+      } else if(player.input > 0) {
+        game$game.data <- add.my.buy(game$game.data, game.buy.options[player.input])
+      }
       player <- player + 1
     } else {
-      cat("It is the turn of",game$players[player],".\n")
       if(do.auto){
         opp.buy <- big.money.opponent(game$game.data)
       } else {
-        cat("What did that person buy? Insert a number:\n",paste0(1:length(game.buy.options),":",game.buy.options))
+        cat("What did",game$players[player],"buy?",paste0(1:length(game.buy.options),":",game.buy.options))
         opp.buy <- as.numeric(readline("?\n"))
       }
       game$game.data <- add.opp.buy(game$game.data, game.buy.options[opp.buy], length(game$players))
@@ -157,9 +161,25 @@ get.money <- function(game.state, real=F){
   
 }
 evaluate.end.deck <- function(game.state){
-  my.cards <- game.state[1, grepl("d_", colnames(game.state), T)]
-  colnames(my.cards) <- gsub("d_", "", colnames(my.cards))
-  out <- list(points=0, actions=0, cards=0, buys=0, money=0, budget=0)
+  better.card.info <- apply(as.data.frame(as.matrix(card.info),stringsAsFactors = F),2,as.numeric)
+  my.cards <- game.state[1, grepl("d_", colnames(game.state), T) & game.state[1, ] > 0]
+  names(my.cards) <- gsub("d_", "", names(my.cards))
+  card.rows <- which(card.info$Singular %in% names(my.cards))
+  my.cards <- data.frame(
+    name = names(my.cards),
+    amount = my.cards,
+    actions = as.numeric(as.character(card.info$Actions[card.rows])),
+    cards = as.numeric(as.character(card.info$Cards[card.rows])),
+    buys = as.numeric(as.character(card.info$Buys[card.rows])),
+    coins = as.numeric(as.character(card.info$Coins[card.rows])),
+    VP = as.numeric(as.character(card.info$VP[card.rows]))
+  )
+  mean.hand <- my.cards[1, -1] * 0
+  for(i in 1:1000){
+    mean.hand <- mean.hand + colSums(my.cards[sample(1:nrow(my.cards), min(5, nrow(my.cards))), -1], na.rm = T)
+  }
+  mean.hand <- mean.hand / 1000
+  return(mean.hand[, 2:6])
 }
 print.points.per.player <- function(game.state){
   my.points <- game.state[, "d_Estate"] + game.state[, "d_Duchy"] * 3 + game.state[, "d_Province"] * 6
